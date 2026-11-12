@@ -26,6 +26,17 @@ cp .env.example .env
 npm run dev
 ```
 
+**Windows（PowerShell）**：需要先装 [Node.js 22 LTS](https://nodejs.org/) 和 [Git](https://git-scm.com/)，然后逐行执行：
+
+```powershell
+cd $HOME
+git clone https://github.com/greenge83-sudo/chimein
+cd chimein
+npm install
+Copy-Item .env.example .env
+npm run dev
+```
+
 打开 http://localhost:5173 ，注册主持人账号 → 新建会议 → 进入控制台 → 开始会议。
 
 - 默认 `.env` 全部使用 **mock**（不调用任何外部服务，卡片带“[演示]”标记），用于体验流程和联调。
