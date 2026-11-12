@@ -26,7 +26,7 @@ cp .env.example .env
 npm run dev
 ```
 
-**Windows（PowerShell）**：需要先装 [Node.js 22 LTS](https://nodejs.org/) 和 [Git](https://git-scm.com/)，然后逐行执行：
+**Windows（PowerShell）**：需要先装 [Node.js 22 LTS（≥ 22.5）](https://nodejs.org/) 和 [Git](https://git-scm.com/)，然后逐行执行：
 
 ```powershell
 cd $HOME

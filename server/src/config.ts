@@ -33,7 +33,7 @@ export const config = {
   port: Number(env('PORT', '8787')),
   publicUrl: env('PUBLIC_URL', 'http://localhost:5173').replace(/\/$/, ''),
   dataDir: path.resolve(env('DATA_DIR', './data')),
-  isProd: env('NODE_ENV') === 'production',
+  isProd: env('NODE_ENV') === 'production' || process.env.npm_lifecycle_event === 'start',
 
   llm: {
     judge: { provider: env('LLM_JUDGE_PROVIDER', 'mock'), model: env('LLM_JUDGE_MODEL', 'claude-haiku-5-5') },

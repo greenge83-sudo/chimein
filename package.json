@@ -8,7 +8,7 @@
     "dev:server": "tsx watch server/src/index.ts",
     "dev:web": "vite --config web/vite.config.ts",
     "build": "vite build --config web/vite.config.ts",
-    "start": "NODE_ENV=production tsx server/src/index.ts",
+    "start": "tsx server/src/index.ts",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
     "test": "node --test --import tsx server/test/*.test.ts"
   },
