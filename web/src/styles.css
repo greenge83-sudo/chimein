@@ -203,3 +203,8 @@ table.actions th, table.actions td { text-align: left; padding: 6px 8px; border-
   body, :root { --bg: #fff; --surface: #fff; background: #fff; color: #000; }
   .card { box-shadow: none; break-inside: avoid; }
 }
+
+/* 仅我方可见 / 场景提示 */
+.warn { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.note { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
+.our-side { font-size: 12px; color: var(--warn); white-space: nowrap; }

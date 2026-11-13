@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import QRCode from 'qrcode';
 import { z } from 'zod';
-import { config, PRESETS, type Preset } from '../config.js';
+import { config, PRESETS, PRESET_IDS, type Preset } from '../config.js';
 import {
   cards, materials, meetings, minutesRepo, participants, reactions, requests, segments, token, usage, users, type Meeting, type User,
 } from '../db.js';
@@ -68,6 +68,7 @@ function meetingView(m: Meeting, role: Who['role']) {
     id: m.id, title: m.title, preset: m.preset, status: m.status, language: m.language, card_language: m.card_language,
     counterparties: m.counterparties, started_at: m.started_at, ended_at: m.ended_at, join_code: m.join_code,
     settings: { frequency: m.settings.frequency, aiPaused: m.settings.aiPaused, subtitles: m.settings.subtitles },
+    audience: PRESETS[m.preset].audience,
     elapsedMs: getRuntime(m.id)?.elapsedMs() ?? (m.started_at && m.ended_at ? m.ended_at - m.started_at - m.paused_ms : 0),
     links: { join: meetingLinks(m).join },
   };
@@ -77,7 +78,7 @@ function meetingView(m: Meeting, role: Who['role']) {
 
 const CreateMeeting = z.object({
   title: z.string().min(1).max(200),
-  preset: z.enum(['external', 'brainstorm', 'review', 'project', 'casual']),
+  preset: z.enum(PRESET_IDS as [Preset, ...Preset[]]),
   agenda: z.string().max(5000).optional().nullable(),
   counterparties: z.array(z.string().max(100)).max(20).default([]),
   language: z.enum(['zh', 'en', 'auto']).default('auto'),
@@ -107,7 +108,7 @@ export async function apiRoutes(app: FastifyInstance) {
     if (!u) return fail(reply, 401, 'unauthorized');
     return { id: u.id, email: u.email, name: u.name, region: u.region, locale: u.locale, plan: users.plan(u.plan_id) };
   });
-  app.get('/api/config', async () => ({ region: config.region, asrMode: asrMode(), presets: Object.keys(PRESETS),
+  app.get('/api/config', async () => ({ region: config.region, asrMode: asrMode(), presets: Object.fromEntries(PRESET_IDS.map((p) => [p, { audience: PRESETS[p].audience }])),
     wakeWords: loadTuning().wakeWords, providers: { judge: config.llm.judge.provider, generate: config.llm.generate.provider, search: config.search.provider, asr: config.asr.provider } }));
 
   // ---------- 会议 ----------

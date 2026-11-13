@@ -53,6 +53,10 @@ test('M1 主流程', async () => {
   const created = await api('POST', '/api/meetings', { title: '宠物品牌合作洽谈', preset: 'brainstorm', counterparties: ['汪星人科技'], card_language: 'zh' }, H);
   assert.equal(created.status, 200, JSON.stringify(created.json));
   const m = created.json.meeting;
+  assert.equal(m.audience, 'room');
+  const iv = await api('POST', '/api/meetings', { title: '后端工程师面试', preset: 'interview' }, H);
+  assert.equal(iv.status, 200);
+  assert.equal(iv.json.meeting.audience, 'our_side');
   assert.match(m.join_code, /^\d{6}$/);
   assert.ok(m.links.screen.includes(m.id));
 

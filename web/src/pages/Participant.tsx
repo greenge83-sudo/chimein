@@ -67,6 +67,7 @@ function Room({ meetingId, onKicked }: { meetingId: string; onKicked: () => void
     <div className="participant">
       <header className="p-bar">
         <strong className="title">{M.state?.title ?? meeting.title}</strong>
+        {meeting.audience === 'our_side' && <span className="our-side">🔒 {t('ourSide')}</span>}
         <AiStatus ai={M.ai} />
         <LangSwitch />
       </header>

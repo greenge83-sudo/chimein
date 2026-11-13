@@ -1,6 +1,7 @@
 /** 大脑一 · 记录员：会后纪要（需求 F-10 / 8.3） */
 import { cards, meetings, minutesRepo, segments, type Segment } from '../db.js';
 import { llmJson, prompt } from '../adapters/llm/index.js';
+import { PRESETS } from '../config.js';
 import { MinutesSchema, type MinutesOut } from './schemas.js';
 import { toAll } from '../bus.js';
 
@@ -24,7 +25,10 @@ export async function generateMinutes(meetingId: string): Promise<void> {
     const segs = segments.list(meetingId).filter((s) => !s.is_command);
     const shown = cards.published(meetingId).map((c) => ({ id: c.id, type: c.type, title: c.title, body: c.body }));
     const language = minutesLanguage(m.language, segs);
-    const system = prompt('minutes', { productName: '插一句 ChimeIn', language: language === 'zh' ? '中文' : 'English' });
+    const guidance = m.preset === 'interview'
+      ? '这是面试记录，只给面试官看。summary_md 写候选人讲到的经历要点；topics 按面试环节整理；decisions 只记录面试中明确说出的安排；不要写录用建议、不要评价候选人诚信。另在 topics 末尾加一条"待核实事项"，列出与公开信息不一致或需要背调确认的说法（中性表述）。'
+      : PRESETS[m.preset].guidance ?? '-';
+    const system = prompt('minutes', { productName: '插一句 ChimeIn', language: language === 'zh' ? '中文' : 'English', guidance });
     const meta = { userId: m.host_id, meetingId };
     const base = { title: m.title, agenda: m.agenda, counterparties: m.counterparties };
     let out: MinutesOut;

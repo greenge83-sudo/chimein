@@ -360,7 +360,7 @@ export class MeetingRuntime {
       const zh = m.card_language !== 'en';
       const system = prompt('judge', {
         productName: '插一句 ChimeIn', title: m.title, preset: m.preset, persona: preset.persona[zh ? 'zh' : 'en'],
-        preferred: preset.preferred.join(', '), agenda: m.agenda ?? '-', counterparties: m.counterparties.join('、') || '-',
+        preferred: preset.preferred.join(', '), agenda: m.agenda ?? '-', counterparties: m.counterparties.join('、') || '-', guidance: preset.guidance ?? '-',
       });
       const transcript = win.map((s) => s.echo_of_card_id
         ? `[卡片 ${s.echo_of_card_id} 已被读出]`

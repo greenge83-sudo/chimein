@@ -5,7 +5,8 @@ import fs from 'node:fs';
 const env = (k: string, d = '') => process.env[k] ?? d;
 
 export type Region = 'global' | 'cn';
-export type Preset = 'external' | 'brainstorm' | 'review' | 'project' | 'casual';
+export type Preset = 'external' | 'brainstorm' | 'review' | 'project' | 'casual' | 'interview';
+export const PRESET_IDS: Preset[] = ['external', 'brainstorm', 'review', 'project', 'casual', 'interview'];
 export type Frequency = 'quiet' | 'standard' | 'active';
 export type CardType =
   | 'knowledge'
@@ -113,31 +114,57 @@ export const PRESETS: Record<Preset, {
   persona: { zh: string; en: string };
   minIntervalMs: number;
   preferred: CardType[];
+  /**
+   * 卡片给谁看：room = 在场所有人（内部会议，可投大屏）；
+   * our_side = 只给我方成员（面试、对外拜访），卡片只在我方手机上同步，不建议投屏、口令不要给对方。
+   */
+  audience: 'room' | 'our_side';
+  /** 注入判定 / 生成 / 纪要 Prompt 的场景说明 */
+  guidance?: string;
 }> = {
   external: {
     persona: { zh: '克制、中性', en: 'restrained and neutral' },
     minIntervalMs: 3 * 60_000,
     preferred: ['entity_brief', 'knowledge', 'data_reference'],
+    audience: 'our_side',
+    guidance: '这是对外洽谈 / 第三方拜访沟通。卡片只给我方成员看。重点：对方公司与品牌的公开信息、对方提到的行业数据与说法的核对、我方可以追问的问题。',
   },
   brainstorm: {
     persona: { zh: '活跃、发散', en: 'lively and divergent' },
     minIntervalMs: 90_000,
     preferred: ['case_study', 'inspiration'],
+    audience: 'room',
   },
   review: {
     persona: { zh: '严谨', en: 'rigorous' },
     minIntervalMs: 3 * 60_000,
     preferred: ['data_reference', 'fact_check', 'discussion_summary'],
+    audience: 'room',
   },
   project: {
     persona: { zh: '安静', en: 'quiet' },
     minIntervalMs: 5 * 60_000,
     preferred: ['knowledge', 'discussion_summary'],
+    audience: 'room',
   },
   casual: {
     persona: { zh: '轻松、口语化', en: 'relaxed and conversational' },
     minIntervalMs: 2 * 60_000,
     preferred: ['knowledge', 'case_study', 'inspiration'],
+    audience: 'room',
+  },
+  interview: {
+    persona: { zh: '中性、克制、只陈述公开信息', en: 'neutral, restrained, public facts only' },
+    minIntervalMs: 2 * 60_000,
+    preferred: ['fact_check', 'knowledge', 'inspiration'],
+    audience: 'our_side',
+    guidance: [
+      '这是一场招聘面试，卡片只给面试官看，候选人看不到。目标是帮面试官把候选人说的内容和公开信息对上、并给出可以追问的问题。',
+      '可以核对：候选人提到的公司、产品、项目的公开信息（成立时间、规模、业务、公开事件、发布时间等），行业数据，技术概念与术语。',
+      '不得做：检索候选人本人的个人信息、社交账号或私生活；判断候选人是否诚实或"说谎"；对候选人打分或给出录用建议；涉及年龄、性别、婚育、民族、宗教、健康、籍贯等与岗位无关的话题一律不出卡。',
+      '与公开信息不一致时，只写"公开信息显示……"，并给 1-2 个中性的追问建议（例如"可请候选人说明当时团队规模"），由面试官自己判断。',
+      '讨论停滞或候选人回答笼统时，可以出"灵感追问"卡，给出能验证真实经历的追问（具体做了什么、数据口径、遇到的困难）。',
+    ].join('\n'),
   },
 };
 

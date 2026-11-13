@@ -38,6 +38,9 @@ export function limitsText(m: Meeting, t: Tuning) {
   return `标题 ≤ ${L.title} 字；正文 ≤ ${L.body} 字；要点最多 ${L.bullets} 条，每条 ≤ ${L.bullet} 字；正文带触发原话片段（"因为刚才提到……"）`;
 }
 
+/** 面试场景：与岗位无关、受反歧视法规保护的话题，代码侧兜底拦截（Prompt 之外的第二道防线） */
+export const INTERVIEW_PROTECTED = /(年龄|多大了|几岁|出生年|婚姻|婚育|婚恋|恋爱|有没有对象|要孩子|结婚|已婚|未婚|离异|怀孕|备孕|生育|生孩子|育儿|民族|宗教|信仰|籍贯|户口|健康状况|病史|残疾|性取向|政治面貌|\bage\b|marital|married|pregnan|religio|ethnic|disabilit|sexual orientation|health condition)/i;
+
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 
 /** 代码侧校验：字数、来源、置信度（需求 6.1 第 6 步）。不合格返回原因字符串 */
@@ -56,6 +59,10 @@ export function validateAndNormalize(out: GenerateOut, job: CardJob, m: Meeting,
   const factual = FACTUAL_TYPES.includes(job.type) || (job.type === 'iteration' && o.sources.length > 0);
   if (factual && FACTUAL_TYPES.includes(job.type) && o.sources.length === 0) return 'factual card without sources';
   if (factual && o.confidence < t.confidenceThreshold) return `confidence ${o.confidence} < ${t.confidenceThreshold}`;
+  if (m.preset === 'interview') {
+    const text = [o.title, o.body, ...o.bullets].join(' ');
+    if (INTERVIEW_PROTECTED.test(text)) return 'interview: protected-attribute topic';
+  }
   if (job.type === 'iteration') {
     if (!job.parentCardId) return 'iteration without parent';
     if (!o.increment || !o.increment.trim()) return 'iteration without increment';
@@ -93,7 +100,7 @@ export async function runCardJob(m: Meeting, job: CardJob, t: Tuning): Promise<C
   // 2) 生成
   const preset = PRESETS[m.preset];
   const system = prompt('generate', {
-    productName: '插一句 ChimeIn', persona: preset.persona[isZh(lang) ? 'zh' : 'en'], limits: limitsText(m, t),
+    productName: '插一句 ChimeIn', persona: preset.persona[isZh(lang) ? 'zh' : 'en'], limits: limitsText(m, t), guidance: preset.guidance ?? '-',
     cardLanguage: lang === 'zh' ? '中文' : lang === 'en' ? 'English' : '中英双语（中文在前，英文在后）',
   });
   const user = JSON.stringify({

@@ -6,6 +6,9 @@
 - 议程：{{agenda}}
 - 参会方：{{counterparties}}
 
+场景说明（优先遵守）：
+{{guidance}}
+
 卡片类型（card_type 取值）：
 - knowledge 知识补充：出现专业术语、概念、政策、技术名词
 - data_reference 数据参考：讨论市场规模、增长率、对标等需要数字的话题

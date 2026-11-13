@@ -47,3 +47,12 @@ test('校验：迭代卡必须有增量说明', () => {
   assert.equal(typeof validateAndNormalize(out({ type: 'iteration', increment: '' }), it, meeting, defaultTuning, []), 'string');
   assert.equal(typeof validateAndNormalize(out({ type: 'iteration', increment: '新增了 2026 年数据' }), it, meeting, defaultTuning, []), 'object');
 });
+
+test('面试：受保护话题的卡片被拦截，正常的公开信息核对放行', () => {
+  const iv: any = { card_language: 'zh', is_important: false, preset: 'interview' };
+  const src = [{ title: '报告', url: 'https://a.example/report' }];
+  const bad = validateAndNormalize(out({ type: 'knowledge', title: '可追问', body: '可以问问候选人的婚育计划', sources: src }), { type: 'knowledge', parentCardId: null } as any, iv, defaultTuning, results);
+  assert.equal(bad, 'interview: protected-attribute topic');
+  const ok = validateAndNormalize(out({ title: '某公司公开信息', body: '公开信息显示该公司成立于 2018 年，主力产品用面向对象的 Java 架构。', sources: src }), job, iv, defaultTuning, results);
+  assert.equal(typeof ok, 'object');
+});

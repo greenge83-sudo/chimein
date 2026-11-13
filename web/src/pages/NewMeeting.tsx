@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Links } from '../components/Links';
 
-const PRESETS = ['external', 'brainstorm', 'review', 'project', 'casual'] as const;
+const PRESETS = ['external', 'interview', 'brainstorm', 'review', 'project', 'casual'] as const;
 
 export default function NewMeeting() {
   const t = useT();
@@ -51,9 +51,10 @@ export default function NewMeeting() {
             <button type="button" key={p} className={preset === p ? 'chip on' : 'chip'} onClick={() => setPreset(p)}>{t(`preset.${p}` as any)}</button>
           ))}
         </fieldset>
+        {preset === 'interview' && <p className="note">{t('interviewNote')}</p>}
         <label>{t('agenda')}<textarea name="agenda" rows={3} maxLength={5000} /></label>
-        <label>{t('counterparties')}<input name="counterparties" maxLength={500} /></label>
-        <label>{t('background')}<textarea name="background" rows={4} /></label>
+        <label>{preset === 'interview' ? t('counterpartiesInterview') : t('counterparties')}<input name="counterparties" maxLength={500} /></label>
+        <label>{preset === 'interview' ? t('backgroundInterview') : t('background')}<textarea name="background" rows={4} /></label>
         <label className="file">{t('uploadFile')}<input type="file" accept=".pdf,.docx,.txt,.md" onChange={(e) => setFile(e.target.files?.[0] ?? null)} /></label>
         <div className="row wrap">
           <label>{t('meetingLang')}<select name="language" defaultValue="auto">

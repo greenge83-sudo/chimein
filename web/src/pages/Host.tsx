@@ -68,7 +68,7 @@ export default function Host() {
   const metrics = M.data.metrics;
 
   const start = async () => {
-    if (!meeting.started_at && !confirm(t('consent'))) return;
+    if (!meeting.started_at && !confirm(t(meeting.preset === 'interview' ? 'consent.interview' : meeting.audience === 'our_side' ? 'consent.our_side' : 'consent'))) return;
     await patch({ status: 'live', consent: true });
   };
   const end = async () => {
@@ -85,6 +85,7 @@ export default function Host() {
         <span className="muted">{fmtDuration(M.state?.elapsedMs ?? meeting.elapsedMs)}</span>
         <AiStatus ai={M.ai} />
         {live && <span className="listening-badge">● {t('aiListeningBadge')}</span>}
+        {meeting.audience === 'our_side' && <span className="our-side">🔒 {t('ourSide')}</span>}
         <span className="muted small">{M.online} {t('online')}</span>
         {!M.connected && <span className="error small">offline…</span>}
         <span className="grow" />
