@@ -1,6 +1,7 @@
 /** REST 接口（需求 7.2） */
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import crypto from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import fs from 'node:fs';
 import path from 'node:path';
 import QRCode from 'qrcode';
@@ -54,8 +55,15 @@ function hasFeature(user: User, f: string) {
 
 const fail = (reply: FastifyReply, code: number, error: string) => reply.code(code).send({ error });
 
+/** PUBLIC_URL=auto 时，链接和二维码跟随打开页面的地址（云端预览、临时域名时用） */
+const originStore = new AsyncLocalStorage<string>();
+function baseUrl() {
+  if (config.publicUrl !== 'auto') return config.publicUrl;
+  return originStore.getStore() || `http://localhost:${config.port}`;
+}
+
 function meetingLinks(m: Meeting) {
-  const base = config.publicUrl;
+  const base = baseUrl();
   return {
     join: `${base}/m/${m.id}`,
     screen: `${base}/m/${m.id}/screen?k=${m.screen_key}`,
@@ -88,6 +96,10 @@ const CreateMeeting = z.object({
 });
 
 export async function apiRoutes(app: FastifyInstance) {
+  app.addHook('onRequest', (req, _reply, done) => {
+    const o = req.headers['x-app-origin'];
+    originStore.run(typeof o === 'string' && /^https?:\/\/[\w.\-:\[\]]+$/.test(o) ? o : '', done);
+  });
   // ---------- 账号（F-01）----------
   // MVP 先实现邮箱 + 密码；Google / Apple / 手机验证码 / 微信登录作为 auth_provider 扩展接入。
   app.post('/api/auth/register', async (req, reply) => {
@@ -423,7 +435,7 @@ export async function apiRoutes(app: FastifyInstance) {
     if (who(req, m)?.role !== 'host') return fail(reply, 403, 'forbidden');
     const b = z.object({ enabled: z.boolean().default(true) }).parse(req.body ?? {});
     const next = meetings.update(m.id, { share_token: b.enabled ? (m.share_token ?? token()) : null })!;
-    return { share_token: next.share_token, url: next.share_token ? `${config.publicUrl}/s/${next.share_token}` : null };
+    return { share_token: next.share_token, url: next.share_token ? `${baseUrl()}/s/${next.share_token}` : null };
   });
 
   app.get('/api/share/:token', async (req, reply) => {

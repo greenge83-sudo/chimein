@@ -14,7 +14,7 @@ export type Role = 'host' | 'guest' | 'screen';
 export interface Creds { role: Role; meetingId: string; screenKey?: string }
 
 export function headersFor(c?: Creds): Record<string, string> {
-  const h: Record<string, string> = {};
+  const h: Record<string, string> = { 'x-app-origin': location.origin };
   if (!c || c.role === 'host') { const t = auth.hostToken(); if (t) h.authorization = `Bearer ${t}`; }
   if (c?.role === 'guest') { const t = auth.participantToken(c.meetingId); if (t) h['x-participant-token'] = t; }
   if (c?.role === 'screen' && c.screenKey) h['x-screen-key'] = c.screenKey;
