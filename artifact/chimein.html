@@ -1,0 +1,608 @@
+<title>插一句 ChimeIn</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* 布局：顶部状态条 + 单列卡片流（手机优先）+ 底部固定操作条；"投屏"切换为深色单卡大字 */
+:root {
+  --bg: #f4f5f7; --surface: #ffffff; --surface-2: #eceef2; --fg: #16181d; --muted: #646a76; --line: #dfe2e8;
+  --accent: #2f54d6; --accent-fg: #ffffff; --live: #d6334a; --warn: #b85c00; --ok: #23864a;
+  --c-knowledge: #2f54d6; --c-data: #0b7f8f; --c-fact: #c0265a; --c-entity: #6a42d8; --c-case: #d4590c;
+  --c-insp: #23864a; --c-summary: #4b5563; --c-answer: #1666b8; --c-iter: #c97a00;
+  --f-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  --f-num: "Space Grotesk", "Noto Sans SC", system-ui, sans-serif;
+  --r: 14px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1115; --surface: #191c22; --surface-2: #23272f; --fg: #eceef3; --muted: #9aa1ad; --line: #2c3039;
+  --accent: #7d97ff; --accent-fg: #0b0d12; --live: #ff6b7f; --warn: #f0a24a; --ok: #5fd08e;
+  --c-knowledge: #7d97ff; --c-data: #3cc4d4; --c-fact: #ff6f9c; --c-entity: #a98bff; --c-case: #ff9a52;
+  --c-insp: #5fd08e; --c-summary: #a7afbd; --c-answer: #66b3ff; --c-iter: #ffbe4d; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1115; --surface: #191c22; --surface-2: #23272f; --fg: #eceef3; --muted: #9aa1ad; --line: #2c3039;
+  --accent: #7d97ff; --accent-fg: #0b0d12; --live: #ff6b7f; --warn: #f0a24a; --ok: #5fd08e;
+  --c-knowledge: #7d97ff; --c-data: #3cc4d4; --c-fact: #ff6f9c; --c-entity: #a98bff; --c-case: #ff9a52;
+  --c-insp: #5fd08e; --c-summary: #a7afbd; --c-answer: #66b3ff; --c-iter: #ffbe4d; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 16px; line-height: 1.55; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 10px; padding: 8px 14px; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 600; }
+button.ghost { background: transparent; border-color: transparent; color: var(--muted); padding: 6px 8px; }
+button:disabled { opacity: .5; cursor: default; }
+input[type=text] { width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.wrap { max-width: 720px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.muted { color: var(--muted); } .small { font-size: 13px; }
+
+/* 大厅 */
+.lobby { padding-block: 28px 40px; display: grid; gap: 22px; }
+.brand { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brand h1 { margin: 0; font-size: 30px; font-weight: 900; letter-spacing: .02em; }
+.brand span { font-family: var(--f-num); color: var(--muted); font-weight: 500; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; display: grid; gap: 14px; }
+.panel h2 { margin: 0; font-size: 17px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border-radius: 999px; padding: 7px 14px; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.note { font-size: 13px; color: var(--muted); margin: 0; }
+.mlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.mlist button { width: 100%; text-align: left; display: grid; gap: 2px; padding: 12px 14px; }
+.mlist .live { color: var(--live); font-weight: 600; font-size: 12px; }
+.how { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+
+/* 会议页 */
+.room { min-height: 100%; display: flex; flex-direction: column; }
+.topbar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.topbar .wrap { display: flex; align-items: center; gap: 10px; padding-block: 10px; flex-wrap: wrap; }
+.topbar h1 { margin: 0; font-size: 17px; font-weight: 700; flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.status.listening i { background: var(--live); animation: pulse 1.6s infinite; }
+.status.thinking i { background: var(--accent); animation: pulse .8s infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.scope { font-size: 12px; color: var(--warn); white-space: nowrap; }
+.stream { flex: 1; padding-block: 14px 140px; display: grid; gap: 14px; align-content: start; }
+.empty { text-align: center; color: var(--muted); padding: 48px 12px; display: grid; gap: 6px; }
+.empty b { color: var(--fg); font-size: 17px; }
+.partial { font-size: 14px; color: var(--muted); font-style: italic; min-height: 1.4em; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); top: calc(env(safe-area-inset-top, 0px) + 64px); z-index: 20; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; max-width: calc(100% - 32px); }
+.banner { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); color: var(--fg); border-radius: 10px; padding: 10px 12px; font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* 卡片 */
+.card { --tc: var(--c-knowledge); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px 14px; display: grid; gap: 8px; position: relative; overflow: hidden; }
+.card::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--tc); }
+.card.fresh { animation: slide .45s ease-out; }
+@keyframes slide { from { opacity: 0; transform: translateY(-12px); } }
+.card-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.tag { color: var(--tc); background: color-mix(in srgb, var(--tc) 13%, transparent); font-weight: 700; padding: 2px 10px; border-radius: 999px; font-size: 13px; }
+.card h3 { margin: 0; font-size: 21px; line-height: 1.3; font-weight: 700; text-wrap: balance; }
+.card .body { margin: 0; font-size: 17px; }
+.card ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 16.5px; }
+.num { color: var(--tc); font-weight: 700; font-family: var(--f-num); }
+.update { background: color-mix(in srgb, var(--c-iter) 12%, transparent); border-radius: 10px; padding: 10px 12px; font-size: 16px; }
+.update b { color: var(--c-iter); font-size: 13px; display: block; }
+.quote { font-size: 13px; color: var(--muted); margin: 0; }
+.unverified { font-size: 12px; color: var(--muted); }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.actions button { padding: 6px 12px; font-size: 14px; }
+.actions button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--surface)); }
+.card.hidden-card { opacity: .45; }
+
+/* 底部操作条 */
+.dock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.dock .wrap { display: grid; gap: 8px; padding-block: 10px; }
+.dock-row { display: flex; gap: 8px; align-items: center; }
+.dock-row input { flex: 1; min-width: 0; }
+.mic { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.mic.on { background: var(--live); border-color: var(--live); color: #fff; }
+.mic svg { width: 16px; height: 16px; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 13px; }
+.tools .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.tools .seg button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 13px; background: var(--surface); }
+.tools .seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+details.transcript { font-size: 14px; }
+details.transcript div { max-height: 30vh; overflow-y: auto; display: grid; gap: 2px; padding-top: 6px; }
+details.transcript p { margin: 0; } details.transcript p.echo { color: var(--muted); }
+.minutes { white-space: pre-wrap; font-size: 15px; }
+
+/* 投屏模式：深色、只放大最新一张 */
+.present { position: fixed; inset: 0; z-index: 30; background: #0d0f14; color: #f2f3f7; display: grid; grid-template-rows: auto 1fr; font-size: clamp(18px, 2.1vw, 40px);
+  padding: env(safe-area-inset-top, 0px) max(16px, env(safe-area-inset-right, 0px)) env(safe-area-inset-bottom, 0px) max(16px, env(safe-area-inset-left, 0px)); color-scheme: dark; }
+.present-bar { display: flex; gap: 1em; align-items: center; font-size: .55em; color: #9aa1ad; padding-block: .8em; }
+.present-bar b { color: #f2f3f7; font-size: 1.2em; }
+.present-bar .grow { flex: 1; }
+.present-bar button { background: #23272f; border-color: #2c3039; color: #f2f3f7; font-size: 14px; }
+.present-main { display: grid; grid-template-columns: 1fr minmax(0, 24%); gap: 1.4em; align-items: center; min-height: 0; padding-bottom: 1em; }
+.present .card { background: #181b22; border-color: #2c3039; color: #f2f3f7; padding: 1.1em 1.3em; font-size: 1em; gap: .45em; }
+.present .card::before { width: .3em; }
+.present .card h3 { font-size: 1.55em; } .present .card .body { font-size: 1.05em; } .present .card ul { font-size: .95em; padding-left: 1.1em; }
+.present .tag { font-size: .55em; } .present .card-head { font-size: .55em; color: #9aa1ad; } .present .update { font-size: .9em; } .present .update b { font-size: .6em; }
+.present .unverified, .present .quote { font-size: .45em; color: #9aa1ad; }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 .8em; border-left: 2px solid #2c3039; font-size: .5em; color: #9aa1ad; display: grid; gap: .9em; align-self: start; }
+@media (max-width: 760px) { .present-main { grid-template-columns: 1fr; } .timeline { display: none; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
+</style>
+
+<div id="app"></div>
+
+<script>
+(() => {
+'use strict';
+// ---------------- 场景预设（与"插一句"需求文档一致）----------------
+const PRESETS = {
+  external:   { name: '对外洽谈/拜访', scope: 'our', minGap: 180, preferred: '主体速览、知识补充、数据参考',
+    guide: '这是对外洽谈或第三方拜访，卡片只给我方成员看。重点：对方公司与品牌的公开信息、对方说法的核对、我方可追问的问题。' },
+  interview:  { name: '面试', scope: 'our', minGap: 120, preferred: '事实核对、知识补充、灵感追问',
+    guide: '这是招聘面试，卡片只给面试官看。只核对候选人提到的公司、产品、项目、公开事件、行业数据和技术概念，并给出可验证真实经历的追问。不得涉及候选人本人的个人信息；不得判断候选人是否诚实；不得打分或给录用建议；年龄、婚育、民族、宗教、健康、籍贯等与岗位无关的话题一律不出卡。与公开信息不一致时只写"公开信息显示……"并给中性追问。' },
+  brainstorm: { name: '头脑风暴', scope: 'room', minGap: 90, preferred: '案例启发、灵感追问、反方观点',
+    guide: '这是头脑风暴，AI 人格活跃、发散。多给跨行业案例、反方观点和还没讨论到的问题。' },
+  review:     { name: '经营分析/周例会', scope: 'room', minGap: 180, preferred: '数据参考、事实核对、讨论小结',
+    guide: '这是经营分析或周例会，AI 人格严谨。补充行业对标数据，核对口头引用的数字，阶段性梳理结论。' },
+  casual:     { name: '自由讨论', scope: 'room', minGap: 120, preferred: '知识补充、案例启发、灵感追问',
+    guide: '这是两三人的自由讨论（咖啡、饭局），AI 人格轻松、口语化。按需补充知识和灵感。' },
+};
+const TYPES = {
+  knowledge: ['知识', '--c-knowledge'], data_reference: ['数据', '--c-data'], fact_check: ['核对', '--c-fact'], entity_brief: ['速览', '--c-entity'],
+  case_study: ['案例', '--c-case'], inspiration: ['追问', '--c-insp'], discussion_summary: ['小结', '--c-summary'], answer: ['问答', '--c-answer'], iteration: ['更新', '--c-iter'],
+};
+const FACTUAL = ['data_reference', 'fact_check', 'entity_brief', 'case_study'];
+const FREQ = { quiet: { label: '安静', every: 60, gapF: 1.5, th: 0.8 }, standard: { label: '标准', every: 30, gapF: 1, th: 0.7 }, active: { label: '活跃', every: 20, gapF: .6, th: 0.6 } };
+const WAKE = /(插一句|插句话|chime\s?in)[，,。.:：\s]*/i;
+const PROTECTED = /(年龄|多大了|几岁|出生年|婚姻|婚育|婚恋|恋爱|有没有对象|要孩子|结婚|已婚|未婚|离异|怀孕|备孕|生育|生孩子|民族|宗教|信仰|籍贯|户口|健康状况|病史|残疾|性取向|政治面貌|\bage\b|marital|married|pregnan|religio|ethnic|disabilit|sexual orientation)/i;
+
+// ---------------- 状态 ----------------
+const S = {
+  view: 'lobby', meetings: [], meetingsLoaded: false, mid: null, meeting: null, cards: [], fresh: new Set(),
+  me: null, names: {}, preset: 'interview', freq: 'standard', present: false, toast: null, notice: null,
+  segs: [], partial: '', listening: false, aiState: 'idle', aiTopic: '', lastJudgeAt: 0, lastJudgedSeg: 0, lastAutoCardAt: 0, busy: false,
+  minutesBusy: false, caps: { db: null, dictation: null, sample: null, user: null }, capsReady: false,
+};
+let unsubCards = null, unsubMeeting = null, unsubList = null, loadTimer = null, pendingPiece = '', pieceTimer = null, saveTimer = null;
+const $app = document.getElementById('app');
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => (crypto.randomUUID?.() ?? String(Math.random()).slice(2)).replace(/-/g, '').slice(0, 14);
+const now = () => Date.now();
+function toast(msg, ms = 3200) { S.toast = msg; render(); clearTimeout(toast.t); toast.t = setTimeout(() => { S.toast = null; render(); }, ms); }
+
+// 数字高亮（年份不高亮）
+function rich(text) {
+  const re = /(\d[\d.,]*\s?(?:%|％|亿元|万元|亿|万|元|倍|个月|人|家|款)(?:[–\-~～]\d[\d.,]*\s?(?:%|％|亿元|万元|亿|万|元|倍)?)?)/g;
+  return esc(text).replace(re, '<span class="num">$1</span>');
+}
+// 复述识别：转写片段的 2-gram 有多少出现在卡片里
+function grams(s) { const t = [...String(s).toLowerCase().matchAll(/[\p{Script=Han}]|[a-z0-9]+/gu)].map((m) => m[0]); const g = new Set(); for (let i = 0; i + 1 < t.length; i++) g.add(t[i] + t[i + 1]); return g; }
+function containment(a, b) { const A = grams(a), B = grams(b); if (A.size < 3) return 0; let h = 0; for (const x of A) if (B.has(x)) h++; return h / A.size; }
+const cardText = (c) => [c.title, c.body, ...(c.bullets || []), c.increment || ''].join(' ');
+
+// ---------------- 能力 ----------------
+async function initCaps() {
+  const use = (n) => (window.claude?.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null));
+  const [db, dictation, sample, user] = await Promise.all([use('db'), use('dictation'), use('sample'), use('user')]);
+  Object.assign(S.caps, { db, dictation, sample, user });
+  S.capsReady = true;
+  if (user) { try { S.me = await user.id(); } catch { S.me = null; } }
+  if (dictation) {
+    dictation.onFinal(({ text }) => onPiece(text));
+    dictation.onPartial(({ text }) => { S.partial = pendingPiece + text; renderPartial(); });
+    dictation.onState(({ state, reason }) => {
+      S.listening = state !== 'idle';
+      if (state === 'idle' && reason && !['stopped'].includes(reason)) {
+        const why = { viewer_stopped: '你在浏览器里停止了收音', hidden: '页面被切到后台，收音已停止，回来后请再点一次"开始收音"', time_limit: '单次收音最长 60 分钟，请再点一次"开始收音"继续',
+          not_granted: '没有麦克风权限，请在本页的权限菜单里允许"听写"', unavailable: '这个窗口不支持收音（请用电脑上的 Chrome / Edge，或 Claude 桌面版主窗口）', rate_limited: '收音请求太频繁，请稍后再试', upstream_error: '麦克风或语音识别出错，请再试一次' }[reason];
+        if (why) S.notice = why;
+      }
+      if (state === 'idle') flushPiece();
+      setAi(S.listening ? 'listening' : 'idle');
+      render();
+    });
+  }
+  if (db) subscribeList();
+  route();
+}
+
+// ---------------- 数据 ----------------
+function subscribeList() {
+  unsubList?.();
+  unsubList = S.caps.db.collection('meetings').orderBy('createdAt', 'desc').limit(20).onSnapshot((snap) => {
+    S.meetings = snap.docs.map((d) => ({ id: d.id, ...d.data() })); S.meetingsLoaded = true; if (S.view === 'lobby') render();
+  }, () => { S.meetingsLoaded = true; render(); });
+}
+function openMeeting(mid) {
+  S.mid = mid; S.view = 'room'; S.cards = []; S.meeting = null; S.segs = []; S.fresh = new Set(); S.lastAutoCardAt = 0; S.lastJudgedSeg = 0;
+  try { location.hash = 'm-' + mid; } catch {}
+  unsubCards?.(); unsubMeeting?.();
+  const db = S.caps.db;
+  clearTimeout(loadTimer);
+  loadTimer = setTimeout(() => { if (!S.meeting) { S.notice = '暂时连不上共享数据，卡片可能不是最新的。'; render(); } }, 10000);
+  unsubMeeting = db.doc('meetings/' + mid).onSnapshot((d) => {
+    clearTimeout(loadTimer);
+    if (!d.exists) { S.notice = '找不到这场会议，可能已被删除。'; S.view = 'lobby'; render(); return; }
+    S.meeting = { id: d.id, ...d.data() }; if (S.meeting.preset) S.preset = S.meeting.preset; render();
+  }, () => { S.notice = '读取会议失败，请刷新页面。'; render(); });
+  let first = true;
+  unsubCards = db.collection('meetings/' + mid + '/cards').orderBy('createdAt', 'asc').onSnapshot((snap) => {
+    const before = new Set(S.cards.map((c) => c.id));
+    S.cards = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    if (!first) for (const c of S.cards) if (!before.has(c.id)) { S.fresh.add(c.id); if (c.parentId) S.fresh.add(c.parentId); }
+    first = false;
+    resolveNames(); render();
+  }, () => { S.notice = '卡片同步中断，请刷新页面。'; render(); });
+  loadTranscript(mid);
+  render();
+}
+async function resolveNames() {
+  const ids = [...new Set(S.cards.map((c) => c.askedBy).filter(Boolean))].filter((id) => !(id in S.names));
+  if (!ids.length || !S.caps.user?.profiles) return;
+  try { const ps = await S.caps.user.profiles(ids); for (const id of ids) S.names[id] = ps?.[id]?.name || '参会者'; render(); } catch {}
+}
+async function createMeeting(title, preset) {
+  const mid = uid();
+  await S.caps.db.doc('meetings/' + mid).set({ title, preset, createdAt: now(), createdBy: S.me, status: 'live', aiState: 'idle', aiTopic: '' });
+  openMeeting(mid);
+}
+async function addCard(card) {
+  const ref = S.caps.db.collection('meetings/' + S.mid + '/cards').doc(uid());
+  await ref.set({ ...card, createdAt: now(), hidden: false, votes: {} });
+}
+// 转写只保存在当前收音人的私有空间（其他人看不到）
+async function loadTranscript(mid) {
+  if (!S.me) return;
+  try { const d = await S.caps.db.doc('data/users/' + S.me + '/' + mid).get(); if (d.exists && S.mid === mid) { S.segs = d.data().segs || []; S.lastJudgedSeg = S.segs.length; render(); } } catch {}
+}
+function saveTranscriptSoon() {
+  if (!S.me || !S.mid) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const segs = S.segs.slice(-1500);
+    try { await S.caps.db.doc('data/users/' + S.me + '/' + S.mid).set({ segs, updatedAt: now() }); } catch {}
+  }, 8000);
+}
+let lastAiWrite = '';
+async function setAi(state, topic = '') {
+  S.aiState = state; S.aiTopic = topic;
+  const key = state + '|' + topic;
+  if (!S.mid || !S.caps.db || key === lastAiWrite || !S.listening && state !== 'idle') return;
+  lastAiWrite = key;
+  try { await S.caps.db.doc('meetings/' + S.mid).update({ aiState: state, aiTopic: topic.slice(0, 40) }); } catch {}
+}
+
+// ---------------- 收音 ----------------
+function toggleMic() {
+  const d = S.caps.dictation;
+  if (!d) return;
+  S.notice = null;
+  if (S.listening) { d.stop().catch(() => {}); return; }
+  // start() 必须在点击里同步调用
+  d.start().catch((e) => {
+    const msg = { not_granted: '没有麦克风权限。可以在本页的权限菜单里重新允许。', unavailable: '这个窗口不支持收音：请用电脑上的 Chrome / Edge 打开，或用 Claude 桌面版主窗口。', dismissed: '你关闭了授权提示，需要时再点一次。', rate_limited: '请求太频繁，请稍后再试。', no_gesture: '请直接点击按钮开始。' }[e?.code];
+    if (msg) { S.notice = msg; render(); }
+  });
+}
+function onPiece(text) {
+  pendingPiece += text;
+  S.partial = pendingPiece;
+  // 有句末标点就切一段；否则 1.5 秒没新内容也切
+  const m = pendingPiece.match(/^(.*[。！？!?.；;])(.*)$/s);
+  if (m && m[1].trim().length >= 4) { pushSeg(m[1]); pendingPiece = m[2]; }
+  clearTimeout(pieceTimer); pieceTimer = setTimeout(flushPiece, 1500);
+  renderPartial();
+}
+function flushPiece() { if (pendingPiece.trim()) pushSeg(pendingPiece); pendingPiece = ''; S.partial = ''; renderPartial(); }
+function pushSeg(raw) {
+  const text = raw.trim(); if (!text) return;
+  const shown = S.cards.filter((c) => !c.hidden).slice(-10);
+  let echo = null;
+  for (const c of shown) if (containment(text, cardText(c)) >= 0.6) { echo = c.id; break; }
+  const seg = { t: now(), text, echo };
+  S.segs.push(seg);
+  saveTranscriptSoon();
+  const w = text.match(WAKE);
+  if (w && text.slice(w.index + w[0].length).trim().length >= 2) { seg.cmd = true; ask(text.slice(w.index + w[0].length).trim(), 'voice'); }
+  render();
+}
+
+// ---------------- 大脑二：判定 + 生成 ----------------
+function windowSegs(ms = 180000) { const from = now() - ms; return S.segs.filter((s) => s.t >= from && !s.cmd); }
+function feedback() {
+  const out = {};
+  for (const c of S.cards) { const v = Object.values(c.votes || {}); const f = (out[c.type] ??= { useful: 0, irrelevant: 0 }); f.useful += v.filter((x) => x === 'u').length; f.irrelevant += v.filter((x) => x === 'i').length; }
+  return out;
+}
+const shownBrief = () => S.cards.filter((c) => !c.hidden).slice(-12).map((c) => ({ id: c.id, type: c.type, title: c.title, body: c.body, bullets: c.bullets }));
+
+async function tick() {
+  if (!S.listening || S.busy || S.view !== 'room' || !S.caps.sample) return;
+  const f = FREQ[S.freq];
+  if (now() - S.lastJudgeAt < f.every * 1000) return;
+  const fresh = S.segs.slice(S.lastJudgedSeg).filter((s) => !s.echo && !s.cmd);
+  if (fresh.map((s) => s.text).join('').length < 15) return;
+  S.lastJudgeAt = now();
+  S.lastJudgedSeg = S.segs.length;
+  const p = PRESETS[S.preset];
+  if (S.lastAutoCardAt && now() - S.lastAutoCardAt < p.minGap * f.gapF * 1000) return;
+  S.busy = true;
+  try {
+    const win = windowSegs().map((s) => (s.echo ? `[卡片 ${s.echo} 被读出/复述]` : s.text));
+    const prompt = `你是会议 AI 搭子"插一句"的判定模块。你在后台听会，判断此刻是否值得往大家的屏幕上插入一张"脑暴卡"。宁缺毋滥。
+场景（优先遵守）：${p.guide}
+优先卡片类型：${p.preferred}
+会议主题：${S.meeting?.title ?? ''}
+
+卡片类型：knowledge 知识补充（术语、概念、政策、技术）；data_reference 数据参考（市场规模、增长率等需要数字时）；fact_check 事实核对（有人引用具体数字/日期/事件，可能与公开信息不符）；entity_brief 主体速览（公司、品牌、机构，只用公开商业信息）；case_study 案例启发；inspiration 灵感追问（讨论停滞、重复或结论过快时，给还没讨论到的问题或反方观点）；iteration 迭代卡（已上屏卡出现新信息时，填 parent_card_id）。
+规则：寒暄、闲聊、会务安排不出卡；不重复已出过的话题；参会者朗读或复述卡片内容不是出卡理由；对"无关"票多的类型提高门槛。
+
+已上屏卡片：${JSON.stringify(shownBrief())}
+各类型反馈：${JSON.stringify(feedback())}
+最近 3 分钟转写（语音识别结果，可能有错字，没有说话人标签）：
+${win.join('\n')}
+
+只回复一个 JSON 对象：{"should_card": true|false, "type": "上面的类型之一", "value_score": 0到1, "reason": "一句话", "trigger_quote": "触发的原话片段", "parent_card_id": null或卡片id}`;
+    const j = await S.caps.sample.json(prompt, { modelTier: 'quick' });
+    if (!j || !j.should_card || !TYPES[j.type]) return;
+    const fb = feedback()[j.type] || { useful: 0, irrelevant: 0 };
+    const th = f.th + Math.max(0, fb.irrelevant - fb.useful) * 0.05;
+    if (!(Number(j.value_score) >= th)) return;
+    S.lastAutoCardAt = now();
+    const ok = await generate({ type: j.parent_card_id ? 'iteration' : j.type, quote: j.trigger_quote, parentId: j.parent_card_id || null, origin: 'auto', reason: j.reason });
+    if (!ok) S.lastAutoCardAt = 0;
+  } catch (e) { handleSampleError(e); } finally { S.busy = false; setAi(S.listening ? 'listening' : 'idle'); }
+}
+
+async function generate({ type, quote, parentId, origin, question, askedBy, reason }) {
+  const p = PRESETS[S.preset];
+  const parent = parentId ? S.cards.find((c) => c.id === parentId) : null;
+  if (parentId && !parent) type = type === 'iteration' ? 'knowledge' : type;
+  setAi('thinking', question || quote || reason || '');
+  const recent = windowSegs(origin === 'summary' ? 20 * 60000 : 180000).map((s) => s.text);
+  const prompt = `你是会议 AI 搭子"插一句"的生成模块，把一个插话点写成一张显示在参会者手机和大屏上的"脑暴卡"。
+场景（优先遵守）：${p.guide}
+会议主题：${S.meeting?.title ?? ''}
+任务：卡片类型 ${type}${question ? `；参会者的问题/指令："${question}"` : ''}${quote ? `；触发原话："${quote}"` : ''}${reason ? `；插话理由：${reason}` : ''}
+${parent ? `原卡（迭代卡只写原卡没有的新内容）：${JSON.stringify({ title: parent.title, body: parent.body, bullets: parent.bullets })}` : ''}
+最近的对话：
+${recent.slice(-30).join('\n')}
+
+重要：你此刻不能联网搜索。所以——
+- 只写你有把握的、广为人知的事实；数字必须写"约"并带年份，写明"据公开报道/行业报告"之类的口径；没有把握的具体数字不要写，改为给出"建议会后核实：……"。
+- 事实核对卡只用"公开信息显示……"的中性语气，不点名说谁错了；没把握时改成"可追问"的形式。
+- 主体速览只写公开商业信息，不写个人隐私。
+格式：标题不超过 16 个汉字；正文不超过 80 个汉字，正文开头带一句触发原因（如"因为刚才提到……"）；要点最多 3 条，每条不超过 30 个汉字。小结卡：已讨论议题、共识、分歧、待定事项。
+${type === 'iteration' ? '迭代卡：increment 用一句话说明"与原卡相比新增了什么"，说不出就把 increment 设为空字符串。' : ''}
+只回复一个 JSON 对象：{"title": "...", "body": "...", "bullets": ["..."], "increment": "" , "confidence": 0到1}`;
+  try {
+    const c = await S.caps.sample.json(prompt, { modelTier: 'default' });
+    if (!c || typeof c.title !== 'string' || typeof c.body !== 'string') return false;
+    const card = {
+      type, title: c.title.trim().slice(0, 24), body: c.body.trim().slice(0, 140), bullets: (Array.isArray(c.bullets) ? c.bullets : []).map((b) => String(b).trim().slice(0, 50)).filter(Boolean).slice(0, 3),
+      increment: type === 'iteration' ? String(c.increment || '').trim() : '', confidence: Number(c.confidence) || 0, quote: quote || question || '', origin, parentId: type === 'iteration' ? parentId : null, askedBy: askedBy || null,
+    };
+    if (!card.title || !card.body) return false;
+    if (type === 'iteration' && !card.increment) return false;
+    if (FACTUAL.includes(type) && card.confidence < 0.6) return false;
+    if (S.preset === 'interview' && PROTECTED.test(cardText(card))) return false;
+    if (type !== 'iteration' && origin === 'auto' && S.cards.some((x) => !x.hidden && containment(cardText(card), cardText(x)) >= 0.7)) return false;
+    await addCard(card);
+    return true;
+  } finally { setAi(S.listening ? 'listening' : 'idle'); }
+}
+
+async function ask(text, channel) {
+  if (!S.caps.sample) { toast('当前环境不能调用 Claude。'); return; }
+  toast('已收到：' + text.slice(0, 40));
+  try {
+    const ok = await generate({ type: /小结|总结|summary/i.test(text) ? 'discussion_summary' : 'answer', question: text, origin: channel, askedBy: S.me });
+    if (!ok) toast('这条没能生成卡片，换个说法试试。');
+  } catch (e) { handleSampleError(e); }
+}
+async function summaryNow() {
+  if (!S.segs.length) { toast('还没有转写内容，开始收音后再试。'); return; }
+  try { const ok = await generate({ type: 'discussion_summary', origin: 'summary', question: '把到目前为止的讨论做个小结' }); if (!ok) toast('没能生成小结，请稍后再试。'); } catch (e) { handleSampleError(e); }
+}
+function handleSampleError(e) {
+  const code = e?.code;
+  if (['not_granted', 'sampling_disabled', 'capability_disabled', 'not_declared'].includes(code)) S.notice = '这个页面还没被允许调用 Claude，可在本页的权限菜单里打开。';
+  else if (code === 'rate_limited') S.notice = '调用 Claude 太频繁或达到用量上限，AI 会暂停一会儿；可以把出卡频率调到"安静"。';
+  else if (code && code !== 'cancelled' && code !== 'invalid_json') console.warn('sample', e);
+  render();
+}
+
+// ---------------- 大脑一：会后纪要 ----------------
+async function makeMinutes() {
+  if (!S.segs.length) { toast('这台设备上没有这场会的转写，纪要只能在收音的设备上生成。'); return; }
+  S.minutesBusy = true; render();
+  const p = PRESETS[S.preset];
+  const transcript = S.segs.filter((s) => !s.cmd).map((s) => s.text).join('\n').slice(-60000);
+  const prompt = `你是会议 AI 搭子"插一句"的记录员。根据转写整理会后纪要（中文，Markdown）。
+场景：${p.guide}${S.preset === 'interview' ? '\n面试纪要：按面试环节整理候选人讲到的经历要点；末尾列"待核实事项"（中性表述）；不要写录用建议，不评价诚信。' : ''}
+要求：## 会议概要（3-6 句）；## 议题与结论；## 决定；## 待办（只写会上明确说过的，负责人和时间没说就写"未明确"，不要猜）；## 本场脑暴卡回顾（一行一张）。
+会议主题：${S.meeting?.title ?? ''}
+本场卡片：${JSON.stringify(S.cards.filter((c) => !c.hidden).map((c) => c.title))}
+转写（语音识别结果，可能有错字）：
+${transcript}`;
+  try {
+    const r = await S.caps.sample(prompt, { modelTier: 'complex' });
+    await S.caps.db.doc('meetings/' + S.mid).update({ minutes: r.text.slice(0, 60000), minutesAt: now(), status: 'ended' });
+  } catch (e) { handleSampleError(e); toast('纪要没能生成，请稍后再试。'); } finally { S.minutesBusy = false; render(); }
+}
+
+// ---------------- 卡片操作 ----------------
+async function vote(c, v) {
+  if (!S.me) return;
+  const mine = (c.votes || {})[S.me];
+  try { await S.caps.db.doc(`meetings/${S.mid}/cards/${c.id}`).update({ votes: { [S.me]: mine === v ? null : v } }); } catch { toast('只有被邀请编辑的成员可以反馈。'); }
+}
+async function hideCard(c) { try { await S.caps.db.doc(`meetings/${S.mid}/cards/${c.id}`).update({ hidden: !c.hidden }); } catch { toast('没有权限修改。'); } }
+async function deepdive(c) {
+  try { const ok = await generate({ type: c.type === 'iteration' ? 'knowledge' : c.type, question: '深挖这张卡：' + c.title + '。给出更深入、更具体的内容。', origin: 'deepdive', askedBy: S.me }); if (!ok) toast('没能生成深挖卡。'); } catch (e) { handleSampleError(e); }
+}
+
+// ---------------- 渲染 ----------------
+function cardHTML(c, kids, opts = {}) {
+  const [label, color] = TYPES[c.type] || TYPES.knowledge;
+  const votes = Object.values(c.votes || {}); const mine = (c.votes || {})[S.me];
+  const u = votes.filter((x) => x === 'u').length;
+  const by = c.askedBy ? ` · 提问：${esc(S.names[c.askedBy] || (c.askedBy === S.me ? '我' : '参会者'))}` : '';
+  const factual = FACTUAL.includes(c.type) || c.type === 'answer';
+  return `<article class="card ${S.fresh.has(c.id) ? 'fresh' : ''} ${c.hidden ? 'hidden-card' : ''}" style="--tc: var(${color})">
+    <div class="card-head"><span class="tag">${label}</span><span>${new Date(c.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}${by}</span>${c.hidden ? '<span>已隐藏</span>' : ''}</div>
+    <h3>${esc(c.title)}</h3>
+    <p class="body">${rich(c.body)}</p>
+    ${c.bullets?.length ? `<ul>${c.bullets.map((b) => `<li>${rich(b)}</li>`).join('')}</ul>` : ''}
+    ${kids.map((k) => `<div class="update"><b>更新 · ${esc(k.increment)}</b>${rich(k.body)}${k.bullets?.length ? '<br>' + k.bullets.map(rich).join('；') : ''}</div>`).join('')}
+    ${!opts.big && c.quote && c.origin === 'auto' ? `<p class="quote">因为刚才提到："${esc(c.quote.slice(0, 60))}"</p>` : ''}
+    ${factual ? '<span class="unverified">AI 依据已有知识生成，未联网核实；重要数字请会后确认</span>' : ''}
+    ${opts.big ? '' : `<div class="actions">
+      <button data-act="vote-u" data-id="${c.id}" aria-pressed="${mine === 'u'}">有用${u ? ' ' + u : ''}</button>
+      <button data-act="vote-i" data-id="${c.id}" aria-pressed="${mine === 'i'}">无关</button>
+      <button data-act="deep" data-id="${c.id}">深挖</button>
+      ${canManage() ? `<button class="ghost" data-act="hide" data-id="${c.id}">${c.hidden ? '恢复' : '隐藏'}</button>` : ''}
+    </div>`}
+  </article>`;
+}
+const canManage = () => !!S.meeting && (S.meeting.createdBy === S.me || S.caps.user?.canEdit?.());
+function streamParts() {
+  const visible = S.cards.filter((c) => !c.hidden || canManage());
+  const kids = {}; const top = [];
+  for (const c of visible) { if (c.parentId && c.type === 'iteration' && visible.some((x) => x.id === c.parentId)) (kids[c.parentId] ??= []).push(c); else top.push(c); }
+  const key = (c) => Math.max(c.createdAt, ...(kids[c.id] || []).map((k) => k.createdAt));
+  top.sort((a, b) => key(b) - key(a));
+  return { top, kids };
+}
+
+function lobbyHTML() {
+  const caps = S.caps;
+  const presetChips = Object.entries(PRESETS).map(([k, p]) => `<button class="chip" data-act="preset" data-p="${k}" aria-pressed="${S.preset === k}">${p.name}</button>`).join('');
+  const list = S.meetings.filter((m) => m.title);
+  return `<main class="wrap lobby">
+    <div class="brand"><h1>插一句</h1><span>ChimeIn</span></div>
+    <p class="muted" style="margin:0">开会、面试、拜访时打开麦克风，Claude 在关键时刻插一张卡；同场的人在各自手机上看到同一套卡片。</p>
+    ${S.notice ? `<div class="banner">${esc(S.notice)}</div>` : ''}
+    ${!S.capsReady ? '<p class="muted">正在连接…</p>' : !caps.db ? '<div class="banner">需要登录 claude.ai 才能使用。</div>' : `
+    <form class="panel" id="newform">
+      <h2>开始一场</h2>
+      <input type="text" id="title" placeholder="会议主题，例如：后端工程师二面" maxlength="80" required>
+      <div class="chips">${presetChips}</div>
+      <p class="note">${PRESETS[S.preset].scope === 'our' ? '🔒 这类会议的卡片只给我方成员看：只把本页分享给自己人，不要投屏给对方。' : '卡片在场所有人都能看，也可以投到会议室大屏。'}</p>
+      ${S.preset === 'interview' ? '<p class="note">面试模式只核对候选人提到的公司、项目、数据等公开信息并给出追问；不查候选人个人信息、不评判诚信、不给录用建议。开始前请告知候选人。</p>' : ''}
+      <button class="primary" type="submit">创建并进入</button>
+    </form>
+    <section class="panel">
+      <h2>正在进行 / 最近的会议</h2>
+      ${!S.meetingsLoaded ? '<p class="muted small">加载中…</p>' : list.length ? `<ul class="mlist">${list.map((m) => `<li><button data-act="open" data-id="${esc(m.id)}"><span>${esc(m.title)} <span class="muted small">· ${esc(PRESETS[m.preset]?.name || '')}</span></span><span class="${m.status === 'live' ? 'live' : 'muted small'}">${m.status === 'live' ? '● 进行中' : '已结束'} · ${new Date(m.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></button></li>`).join('')}</ul>` : '<p class="muted small">还没有会议。创建第一场，或等同事创建后在这里加入。</p>'}
+    </section>`}
+    <section class="panel">
+      <h2>怎么用</h2>
+      <ol class="how">
+        <li>一个人在电脑上（Chrome / Edge 或 Claude 桌面版）创建会议，点"开始收音"，负责收音。</li>
+        <li>其他人在手机上打开本页同一个链接，点进同一场会，就能同步看卡、点"有用/无关"、提问。</li>
+        <li>说"插一句，……"或在底部输入框提问，AI 立刻出一张回答卡。</li>
+        <li>会后在收音的电脑上点"生成纪要"。</li>
+      </ol>
+      <p class="note">卡片由 Claude 依据已有知识生成，目前不联网检索，重要数字请会后核实。转写只存在收音人自己的私有空间里。</p>
+    </section>
+  </main>`;
+}
+
+function roomHTML() {
+  const m = S.meeting; const p = PRESETS[S.preset] || PRESETS.casual;
+  const { top, kids } = streamParts();
+  const remoteAi = m?.aiState && !S.listening ? m.aiState : S.aiState;
+  const aiLabel = S.aiState === 'thinking' ? '思考中' + (S.aiTopic ? ' · ' + esc(S.aiTopic.slice(0, 18)) : '') : S.listening ? '聆听中' : remoteAi === 'listening' ? '对方设备聆听中' : remoteAi === 'thinking' ? '思考中' : '未收音';
+  const aiClass = S.aiState === 'thinking' || remoteAi === 'thinking' ? 'thinking' : S.listening || remoteAi === 'listening' ? 'listening' : '';
+  const micOK = !!S.caps.dictation;
+  const transcript = S.segs.slice(-80);
+  return `<div class="room">
+    <header class="topbar"><div class="wrap">
+      <button class="ghost" data-act="back" aria-label="返回">←</button>
+      <h1>${esc(m?.title || '…')}</h1>
+      <span class="status ${aiClass}"><i></i>${aiLabel}</span>
+      ${p.scope === 'our' ? '<span class="scope">🔒 仅我方</span>' : ''}
+      <button class="ghost" data-act="present">投屏</button>
+    </div></header>
+    <main class="wrap stream">
+      ${S.notice ? `<div class="banner">${esc(S.notice)} <button class="ghost" data-act="dismiss">知道了</button></div>` : ''}
+      ${m?.minutes ? `<section class="panel"><h2>会议纪要</h2><div class="minutes">${esc(m.minutes)}</div></section>` : ''}
+      ${top.length ? top.map((c) => cardHTML(c, kids[c.id] || [])).join('') : `<div class="empty"><b>${S.listening || remoteAi === 'listening' ? 'AI 在听，值得插话时会出卡' : '还没有卡片'}</b><span>${micOK ? '点下面的"开始收音"，或直接在输入框里提问。' : '收音请在电脑上的 Chrome / Edge 或 Claude 桌面版里进行；手机上可以看卡和提问。'}</span></div>`}
+    </main>
+    <footer class="dock"><div class="wrap">
+      <div class="partial" id="partial">${esc(S.partial)}</div>
+      <form class="dock-row" id="askform">
+        ${micOK ? `<button type="button" class="mic ${S.listening ? 'on' : ''}" data-act="mic"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 10a2.5 2.5 0 0 0 2.5-2.5v-4a2.5 2.5 0 0 0-5 0v4A2.5 2.5 0 0 0 8 10Zm4-2.5a.75.75 0 0 1 1.5 0A5.5 5.5 0 0 1 8.75 13v1.25a.75.75 0 0 1-1.5 0V13A5.5 5.5 0 0 1 2.5 7.5a.75.75 0 0 1 1.5 0 4 4 0 0 0 8 0Z"/></svg>${S.listening ? '停止' : '开始收音'}</button>` : ''}
+        <input type="text" id="askinput" placeholder="问 AI，例如：DTC 是什么意思？" maxlength="300" autocomplete="off">
+        <button class="primary" type="submit">发送</button>
+      </form>
+      <div class="tools">
+        <span class="muted">出卡频率</span><span class="seg">${Object.entries(FREQ).map(([k, f]) => `<button type="button" data-act="freq" data-f="${k}" aria-pressed="${S.freq === k}">${f.label}</button>`).join('')}</span>
+        <button type="button" data-act="summary">出一张小结</button>
+        ${S.segs.length ? `<button type="button" data-act="minutes" ${S.minutesBusy ? 'disabled' : ''}>${S.minutesBusy ? '纪要生成中…' : '生成纪要'}</button>` : ''}
+      </div>
+      ${transcript.length ? `<details class="transcript"><summary class="muted">本机转写（只有你能看到） · ${S.segs.length} 段</summary><div>${transcript.map((s) => `<p class="${s.echo ? 'echo' : ''}">${esc(s.text)}${s.echo ? ' ↺' : ''}</p>`).join('')}</div></details>` : ''}
+    </div></footer>
+  </div>`;
+}
+
+function presentHTML() {
+  const { top, kids } = streamParts();
+  const shown = top.filter((c) => !c.hidden);
+  const main = shown[0];
+  return `<div class="present">
+    <div class="present-bar"><b>${esc(S.meeting?.title || '')}</b><span>${S.listening || S.meeting?.aiState === 'listening' ? '● AI 正在聆听' : ''}</span><span class="grow"></span><button data-act="present">退出投屏</button></div>
+    <div class="present-main">
+      <div>${main ? cardHTML(main, kids[main.id] || [], { big: true }) : '<p style="text-align:center;color:#9aa1ad">AI 在听，值得插话时会出卡</p>'}</div>
+      <ol class="timeline">${shown.slice(1, 9).map((c) => `<li>${esc(TYPES[c.type]?.[0] || '')} · ${esc(c.title)}</li>`).join('')}</ol>
+    </div>
+  </div>`;
+}
+
+function render() {
+  const focusId = document.activeElement?.id; const val = document.activeElement?.value;
+  let html = S.view === 'room' ? roomHTML() : lobbyHTML();
+  if (S.view === 'room' && S.present) html += presentHTML();
+  if (S.toast) html += `<div class="toast" role="status">${esc(S.toast)}</div>`;
+  const keepAsk = document.getElementById('askinput')?.value; const keepTitle = document.getElementById('title')?.value;
+  $app.innerHTML = html;
+  if (keepAsk) { const el = document.getElementById('askinput'); if (el) el.value = keepAsk; }
+  if (keepTitle) { const el = document.getElementById('title'); if (el) el.value = keepTitle; }
+  if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (val != null && el.value !== undefined) { el.value = val; } } }
+  setTimeout(() => { if (S.fresh.size) { S.fresh.clear(); } }, 600);
+}
+function renderPartial() { const el = document.getElementById('partial'); if (el) el.textContent = S.partial; }
+
+// ---------------- 事件 ----------------
+$app.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act; const c = S.cards.find((x) => x.id === b.dataset.id);
+  if (act === 'mic') return toggleMic();
+  if (act === 'preset') { S.preset = b.dataset.p; render(); }
+  else if (act === 'open') openMeeting(b.dataset.id);
+  else if (act === 'back') { if (S.listening) S.caps.dictation?.stop().catch(() => {}); S.view = 'lobby'; S.present = false; unsubCards?.(); unsubMeeting?.(); try { history.replaceState(null, '', location.pathname); } catch {} render(); }
+  else if (act === 'present') { S.present = !S.present; render(); }
+  else if (act === 'freq') { S.freq = b.dataset.f; render(); }
+  else if (act === 'summary') summaryNow();
+  else if (act === 'minutes') makeMinutes();
+  else if (act === 'dismiss') { S.notice = null; render(); }
+  else if (c && act === 'vote-u') vote(c, 'u');
+  else if (c && act === 'vote-i') vote(c, 'i');
+  else if (c && act === 'deep') deepdive(c);
+  else if (c && act === 'hide') hideCard(c);
+});
+$app.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (e.target.id === 'newform') {
+    const t = document.getElementById('title').value.trim(); if (!t) return;
+    createMeeting(t, S.preset).catch(() => toast('创建失败：你可能只有查看权限。'));
+  } else if (e.target.id === 'askform') {
+    const el = document.getElementById('askinput'); const t = el.value.trim(); if (t.length < 2) return;
+    el.value = ''; ask(t, 'ask');
+  }
+});
+function route() { const m = location.hash.match(/^#m-([a-z0-9]+)$/i); if (m && S.caps.db) openMeeting(m[1]); else render(); }
+window.addEventListener('hashchange', () => { const m = location.hash.match(/^#m-([a-z0-9]+)$/i); if (m && m[1] !== S.mid && S.caps.db) openMeeting(m[1]); });
+setInterval(() => tick(), 3000);
+render();
+initCaps();
+})();
+</script>
