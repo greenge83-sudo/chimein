@@ -19,6 +19,12 @@ export function TypeBadge({ type }: { type: string }) {
   return <span className="type-badge" style={{ ['--tc' as any]: m.color }}><b>{m.icon}</b>{getLang() === 'zh' ? m.zh : m.en}</span>;
 }
 
+/** 数字高亮：大屏和手机上一眼看到关键数字 */
+export function Rich({ text }: { text: string }) {
+  const parts = text.split(/(\d[\d.,]*\s?(?:%|％|亿元|万元|亿|万|元|倍|个月|人|家|座|款)(?:[–\-~～]\d[\d.,]*\s?(?:%|％|亿元|万元|亿|万|元|倍)?)?)/g);
+  return <>{parts.map((s, i) => (i % 2 && !/^(19|20)\d\d\s?年?$/.test(s) ? <strong key={i} className="num">{s}</strong> : s))}</>;
+}
+
 export interface CardActions {
   react?: (c: Card, kind: 'useful' | 'irrelevant' | 'saved', on: boolean) => void;
   deepdive?: (c: Card) => void;
@@ -43,12 +49,12 @@ export function CardView({ card, updates = [], mine, actions, big, fresh, focuse
         {card.asked_by && <span className="asked">{t('askedBy')}：{card.asked_by}</span>}
       </header>
       <h3 className="card-title">{card.title}</h3>
-      <p className="card-body">{card.body}</p>
-      {card.bullets.length > 0 && <ul className="card-bullets">{card.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
+      <p className="card-body"><Rich text={card.body} /></p>
+      {card.bullets.length > 0 && <ul className="card-bullets">{card.bullets.map((b, i) => <li key={i}><Rich text={b} /></li>)}</ul>}
       {updates.map((u) => (
         <div key={u.id} className="card-update">
           <div className="update-label">{t('update')}{u.increment_text ? ` · ${u.increment_text}` : ''}</div>
-          <p>{u.body}</p>
+          <p><Rich text={u.body} /></p>
           {u.bullets.length > 0 && <ul className="card-bullets">{u.bullets.map((b, i) => <li key={i}>{b}</li>)}</ul>}
         </div>
       ))}

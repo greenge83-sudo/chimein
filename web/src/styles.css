@@ -208,3 +208,26 @@ table.actions th, table.actions td { text-align: left; padding: 6px 8px; border-
 .warn { margin: 0; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
 .note { margin: -4px 0 0; font-size: 13px; color: var(--muted); }
 .our-side { font-size: 12px; color: var(--warn); white-space: nowrap; }
+
+/* 关键数字高亮 */
+.num { color: var(--tc); font-weight: 700; font-variant-numeric: tabular-nums; }
+.card-update .num { color: var(--c-iter); }
+/* 手机端：加大卡片字号，保证桌上平放也能读 */
+@media (max-width: 700px) {
+  .card { padding: 16px 16px 14px; }
+  .card-title { font-size: 21px; }
+  .card-body { font-size: 17px; line-height: 1.55; }
+  .card-bullets { font-size: 16.5px; line-height: 1.5; } .card-bullets li { margin: 5px 0; }
+  .card-update p { font-size: 16.5px; }
+  .type-badge { font-size: 13px; }
+  .card-actions button { padding: 8px 12px; font-size: 14px; }
+}
+/* 大屏：正文更大、行距更松，要点之间留白 */
+.card-big .card-body { font-size: 1.15em; line-height: 1.45; }
+.card-big .card-bullets { font-size: 1em; padding-left: 1.1em; } .card-big .card-bullets li { margin: .35em 0; }
+.card-big .num { font-size: 1.08em; }
+.screen .listening-badge { font-size: 1em; }
+.timeline { font-size: .72em; } .timeline li { margin-bottom: 1.1em; }
+.card-big .card-head, .card-big .type-badge { font-size: .8em; }
+.card-big .update-label { font-size: .7em; }
+.screen.focus-mode .card-big { font-size: 1.22em; max-width: 1640px; }
